@@ -1,134 +1,150 @@
-// Enhanced bike path data for Montreal
-const montrealBikePaths = {
+// In bike-paths.js - Replace everything with this
+
+// Load the raw Montreal bike path data
+const montrealBikePathsRaw = {
+  "type": "FeatureCollection",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    // Paste your full JSON data here
+  ]
+};
+
+// Function to enhance the bike path data with additional safety properties
+function enhanceBikeLaneData(originalData) {
+  return {
     "type": "FeatureCollection",
-    "features": [
-      {
-        "type": "Feature",
-        "properties": {
-          "id": "demaisonneuve-main",
-          "name": {
-            "en": "De Maisonneuve Bike Path",
-            "fr": "Piste cyclable De Maisonneuve"
-          },
-          "pathType": "protected",
-          "streetSide": "south",
-          "configuration": "bidirectional",
-          "directions": {
-            "eastbound": {
-              "position": "south",
-              "withTraffic": true
-            },
-            "westbound": {
-              "position": "north",
-              "withTraffic": true
-            }
-          },
-          "safetyFeatures": ["concrete-barrier"],
-          "hazards": ["pedestrian-crossings"]
-        },
-        "geometry": {
-          "type": "LineString",
-          "coordinates": [
-            [-73.5685, 45.5085],
-            [-73.5670, 45.5085],
-            [-73.5650, 45.5085],
-            [-73.5630, 45.5085]
-          ]
-        }
-      },
-      {
-        "type": "Feature",
-        "properties": {
-          "id": "bordeaux-street",
-          "name": {
-            "en": "Rue de Bordeaux",
-            "fr": "Rue de Bordeaux"
-          },
-          "pathType": "dedicated",
-          "streetSide": "west",
-          "configuration": "one-way",
-          "directions": {
-            "southbound": {
-              "position": "full",
-              "withTraffic": true
-            }
-          },
-          "safetyFeatures": ["painted-line"],
-          "hazards": ["dooring-risk"]
-        },
-        "geometry": {
-          "type": "LineString",
-          "coordinates": [
-            [-73.5650, 45.5085],
-            [-73.5650, 45.5070],
-            [-73.5650, 45.5055],
-            [-73.5650, 45.5040]
-          ]
-        }
-      },
-      {
-        "type": "Feature",
-        "properties": {
-          "id": "rachel-street",
-          "name": {
-            "en": "Rachel Street",
-            "fr": "Rue Rachel"
-          },
-          "pathType": "protected",
-          "streetSide": "south",
-          "configuration": "bidirectional",
-          "directions": {
-            "eastbound": {
-              "position": "south",
-              "withTraffic": true
-            },
-            "westbound": {
-              "position": "north",
-              "withTraffic": true
-            }
-          },
-          "safetyFeatures": ["concrete-barrier"],
-          "hazards": ["pedestrian-crossings"]
-        },
-        "geometry": {
-          "type": "LineString",
-          "coordinates": [
-            [-73.5780, 45.5240],
-            [-73.5760, 45.5240],
-            [-73.5740, 45.5240],
-            [-73.5720, 45.5240]
-          ]
-        }
-      },
-      {
-        "type": "Feature",
-        "properties": {
-          "id": "berri-street",
-          "name": {
-            "en": "Berri Street",
-            "fr": "Rue Berri"
-          },
-          "pathType": "contraflow",
-          "streetSide": "east",
-          "configuration": "one-way",
-          "directions": {
-            "northbound": {
-              "position": "full",
-              "withTraffic": false
-            }
-          },
-          "safetyFeatures": ["painted-line"],
-          "hazards": ["one-way-street", "dooring-risk"]
-        },
-        "geometry": {
-          "type": "LineString",
-          "coordinates": [
-            [-73.5620, 45.5160],
-            [-73.5620, 45.5145],
-            [-73.5620, 45.5130],
-            [-73.5620, 45.5115]
-          ]
-        }
-      }
-    ]
+    "features": originalData.features.map(feature => {
+      // Clone the original feature
+      const enhancedFeature = JSON.parse(JSON.stringify(feature));
+      
+      // Add our enhanced properties
+      enhancedFeature.properties.id = `path-${enhancedFeature.properties.ID_CYCL}`;
+      
+      // Add multilingual names
+      const arrCode = enhancedFeature.properties.NOM_ARR_VILLE_DESC || "Montreal";
+      enhancedFeature.properties.name = {
+        "en": `Bike path ${enhancedFeature.properties.ID_CYCL} (${arrCode})`,
+        "fr": `Piste cyclable ${enhancedFeature.properties.ID_CYCL} (${arrCode})`
+      };
+      
+      // Determine if bidirectional or one-way
+      enhancedFeature.properties.configuration = 
+        enhancedFeature.properties.TYPE_VOIE2_CODE === "44" || 
+        enhancedFeature.properties.NBR_VOIE === 2 ? 
+        "bidirectional" : "one-way";
+      
+      // Determine which side of the street (this requires analysis)
+      // For now, we'll randomize it for demonstration
+      const sides = ["north", "south", "east", "west"];
+      enhancedFeature.properties.streetSide = sides[Math.floor(Math.random() * sides.length)];
+      
+      // Determine path type
+      enhancedFeature.properties.pathType = determinePathType(enhancedFeature.properties);
+      
+      // Determine directions
+      enhancedFeature.properties.directions = determineDirections(enhancedFeature.properties);
+      
+      // Add safety features
+      enhancedFeature.properties.safetyFeatures = determineSafetyFeatures(enhancedFeature.properties);
+      
+      // Add potential hazards
+      enhancedFeature.properties.hazards = determineHazards(enhancedFeature.properties);
+      
+      return enhancedFeature;
+    })
   };
+}
+
+// Helper functions to determine properties
+function determinePathType(properties) {
+  // Map Montreal's path types to our simplified types
+  switch(properties.TYPE_VOIE_CODE) {
+    case "5": return "protected"; // "Piste cyclable en site propre"
+    case "4": return "dedicated"; // "Piste cyclable sur rue"
+    case "7": return "multiuse";  // "Sentier polyvalent"
+    default: return "shared";     // Default to shared
+  }
+}
+
+function determineDirections(properties) {
+  // Set up direction information based on configuration
+  if (properties.TYPE_VOIE2_CODE === "44" || properties.configuration === "bidirectional") {
+    // Bidirectional path
+    return {
+      "eastbound": {
+        "position": "south",
+        "withTraffic": true
+      },
+      "westbound": {
+        "position": "north",
+        "withTraffic": true
+      }
+    };
+  } else {
+    // One-way path (assuming with traffic by default)
+    const isWithTraffic = properties.TYPE_VOIE2_DESC?.includes("Dans le sens") || true;
+    return {
+      "eastbound": {
+        "position": "full",
+        "withTraffic": isWithTraffic
+      }
+    };
+  }
+}
+
+function determineSafetyFeatures(properties) {
+  const features = [];
+  
+  // Check for protected paths
+  if (properties.PROTEGE_4S === "Oui") {
+    features.push("protected-barrier");
+  }
+  
+  // Check for four-season paths
+  if (properties.SAISONS4 === "Oui") {
+    features.push("four-season");
+  }
+  
+  // Check for Route Verte designation
+  if (properties.ROUTE_VERTE === "Oui") {
+    features.push("route-verte");
+  }
+  
+  // Add separator type if available
+  if (properties.SEPARATEUR_DESC) {
+    switch(properties.SEPARATEUR_CODE) {
+      case "M": features.push("median-separation"); break;
+      case "P": features.push("painted-separation"); break;
+      default: break;
+    }
+  }
+  
+  return features;
+}
+
+function determineHazards(properties) {
+  const hazards = [];
+  
+  // Determine possible hazards based on path type
+  if (properties.TYPE_VOIE_CODE === "1" || properties.TYPE_VOIE_CODE === "2") {
+    hazards.push("shared-with-cars");
+  }
+  
+  if (properties.TYPE_VOIE_CODE === "4") {
+    hazards.push("dooring-risk");
+  }
+  
+  if (properties.TYPE_VOIE_CODE === "7") {
+    hazards.push("pedestrian-crossings");
+  }
+  
+  // Seasonal lanes have winter closure hazard
+  if (properties.SAISONS4 === "Non") {
+    hazards.push("seasonal-closure");
+  }
+  
+  return hazards;
+}
+
+// Process the raw data with our enhancement function
+const montrealBikePaths = enhanceBikeLaneData(montrealBikePathsRaw);

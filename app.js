@@ -49,9 +49,15 @@ map.on('load', () => {
         ['get', 'pathType'],
         'protected', 6,
         'dedicated', 4,
+        'multiuse', 5,
         'shared', 2,
-        'contraflow', 5,
-        4  // Default
+        3  // Default
+      ],
+      'line-opacity': [
+        'case',
+        ['in', 'four-season', ['get', 'safetyFeatures']],
+        1.0,  // Full opacity for year-round paths
+        0.7   // Slightly transparent for seasonal paths
       ]
     }
   });
@@ -148,19 +154,49 @@ function checkNearbyPaths() {
   
   console.log("Checking nearby paths at:", userLocation);
   
-  // Force the Bordeaux path for testing
-  activePath = montrealBikePaths.features.find(
-    feature => feature.properties.id === "bordeaux-street" ||
-              (feature.properties.name && feature.properties.name.en === "Rue de Bordeaux")
-  );
-  
-  console.log("Active path found:", activePath);
+  // If turf.js is available, use proper spatial queries
+  if (typeof turf !== 'undefined') {
+    const userPoint = turf.point(userLocation);
+    let nearestPath = null;
+    let minDistance = Infinity;
+    
+    // Find the nearest path
+    montrealBikePaths.features.forEach(feature => {
+      try {
+        const line = turf.lineString(feature.geometry.coordinates);
+        const nearestPoint = turf.nearestPointOnLine(line, userPoint);
+        
+        if (nearestPoint.properties.dist < minDistance) {
+          minDistance = nearestPoint.properties.dist;
+          nearestPath = feature;
+        }
+      } catch (e) {
+        console.warn("Error processing path:", feature.properties.id, e);
+      }
+    });
+    
+    // Only consider paths within a certain distance (50 meters)
+    if (minDistance < 0.05) {  // roughly 50 meters
+      activePath = nearestPath;
+      console.log("Found nearby path:", nearestPath.properties.id, "at distance", minDistance);
+    } else {
+      // For testing, just pick a random path if none is nearby
+      const randomIndex = Math.floor(Math.random() * montrealBikePaths.features.length);
+      activePath = montrealBikePaths.features[randomIndex];
+      console.log("No path nearby, using random path for testing:", activePath.properties.id);
+    }
+  } else {
+    // Fallback if turf.js is not available
+    const randomIndex = Math.floor(Math.random() * montrealBikePaths.features.length);
+    activePath = montrealBikePaths.features[randomIndex];
+    console.log("Using random path:", activePath.properties.id);
+  }
   
   // Update the side and direction indicators
   if (activePath) {
     updatePathIndicators(activePath);
   } else {
-    console.warn("No path found near location");
+    console.warn("No path found");
   }
 }
 
@@ -209,7 +245,7 @@ function updatePathIndicators(path) {
   updateLaneVisual(path, userDirection);
 }
 
-// Update the turn-by-turn instruction panel
+// Update the turn-by-turn instruction panel with enhanced data
 function updateInstructionPanel(path, userDirection, positionText) {
   const streetDirectionElement = document.querySelector('.step-direction');
   const instructionContent = document.querySelector('.step-safety-info');
@@ -220,11 +256,8 @@ function updateInstructionPanel(path, userDirection, positionText) {
   }
   
   // Update the street name and direction
-  if (path.properties.id === 'bordeaux-street') {
-    streetDirectionElement.textContent = `Turn left onto Bordeaux`;
-  } else {
-    streetDirectionElement.textContent = `On ${path.properties.name.en}`;
-  }
+  const pathName = path.properties.name.en;
+  streetDirectionElement.textContent = `On ${pathName}`;
   
   // Create safety instruction based on path properties
   let safetyText = `Bike lane on ${path.properties.streetSide.toUpperCase()} side, `;
@@ -242,7 +275,15 @@ function updateInstructionPanel(path, userDirection, positionText) {
     safetyText += withTraffic ? 'ONE-WAY with traffic' : 'ONE-WAY against traffic (use caution!)';
   }
   
-  // Add safety features and hazards
+  // Add path type
+  safetyText += `, ${path.properties.pathType.toUpperCase()} lane`;
+  
+  // Add safety features if present
+  if (path.properties.safetyFeatures && path.properties.safetyFeatures.length > 0) {
+    safetyText += ` with ${formatSafetyFeatures(path.properties.safetyFeatures)}`;
+  }
+  
+  // Add hazards if present
   if (path.properties.hazards && path.properties.hazards.length > 0) {
     safetyText += ` - Watch for: ${formatHazards(path.properties.hazards)}`;
   }
@@ -288,7 +329,8 @@ function formatHazards(hazards) {
   const hazardLabels = {
     'dooring-risk': 'car doors',
     'pedestrian-crossings': 'pedestrians',
-    'frequent-pedestrians': 'pedestrians',
+    'shared-with-cars': 'mixed traffic',
+    'seasonal-closure': 'winter closure',
     'busy-intersections': 'busy intersections',
     'one-way-street': 'one-way street'
   };
@@ -296,19 +338,33 @@ function formatHazards(hazards) {
   return hazards.map(h => hazardLabels[h] || h).join(', ');
 }
 
+// Helper to format safety features for display
+function formatSafetyFeatures(features) {
+  const featureLabels = {
+    'protected-barrier': 'physical barrier',
+    'four-season': 'open year-round',
+    'route-verte': 'Route Verte',
+    'median-separation': 'median barrier',
+    'painted-separation': 'painted buffer'
+  };
+  
+  return features.map(f => featureLabels[f] || f).join(', ');
+}
+
 // Simulate a route for demonstration
 function simulateRoute() {
   // Set up a simulated route
   document.querySelector('.step-direction').textContent = 'Turn left onto Bordeaux';
   
-  // Find the Bordeaux path in our data
-  const bordeauxPath = montrealBikePaths.features.find(
-    feature => feature.properties.id === 'bordeaux-street'
-  );
-  
-  // Update indicators with this path
-  if (bordeauxPath) {
-    updatePathIndicators(bordeauxPath);
+  // Find a path in our data to use
+  if (montrealBikePaths && montrealBikePaths.features && montrealBikePaths.features.length > 0) {
+    const randomIndex = Math.floor(Math.random() * montrealBikePaths.features.length);
+    const path = montrealBikePaths.features[randomIndex];
+    
+    // Update indicators with this path
+    if (path) {
+      updatePathIndicators(path);
+    }
   }
 }
 
