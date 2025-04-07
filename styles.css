@@ -1,0 +1,228 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    position: relative;
+    overflow-y: auto; /* Enable scrolling if needed */
+  }
+  
+  .top-bar {
+    background-color: #3498db;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    z-index: 10;
+  }
+  
+  .top-bar h1 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .top-bar button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100; /* Ensure buttons are clickable */
+  }
+  
+  .top-bar button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  #map {
+    flex-grow: 1;
+    width: 100%;
+  }
+  
+  .nav-controls {
+    background-color: white;
+    padding: 10px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    position: relative;
+    z-index: 50;
+    margin-bottom: 20px;
+  }
+  
+  #locate-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 8px;
+    z-index: 100; /* Ensure buttons are clickable */
+  }
+  
+  .direction-info {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  
+  #side-indicator, #direction-indicator {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  
+  .instructions-panel {
+    position: absolute;
+    bottom: 200px;
+    left: 20px;
+    right: 20px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 40; /* Lower than buttons but higher than map */
+  }
+  
+  .instruction-step {
+    display: flex;
+    align-items: flex-start;
+  }
+  
+  .step-number {
+    width: 24px;
+    height: 24px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  
+  .step-direction {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  
+  .step-safety-info {
+    font-size: 14px;
+    color: #e74c3c;
+  }
+  
+  /* Path side indicator styles */
+  .west-side {
+    color: #3498db;
+  }
+  
+  .east-side {
+    color: #9b59b6;
+  }
+  
+  .north-side {
+    color: #2ecc71;
+  }
+  
+  .south-side {
+    color: #f39c12;
+  }
+  
+  /* Lane visualization styles */
+  .lane-visual {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+  
+  .street-graphic {
+    position: relative;
+    height: 50px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .street {
+    height: 30px;
+    background-color: #888;
+    border-radius: 4px;
+  }
+  
+  .bike-lane {
+    height: 15px;
+    background-color: #3498db;
+    border-radius: 4px;
+    position: absolute;
+    width: 100%;
+  }
+  
+  .bike-lane.north {
+    top: 0;
+  }
+  
+  .bike-lane.south {
+    bottom: 0;
+  }
+  
+  .bike-lane.west {
+    height: 100%;
+    width: 15px;
+    left: 0;
+  }
+  
+  .bike-lane.east {
+    height: 100%;
+    width: 15px;
+    right: 0;
+  }
+  
+  .lane-direction {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .direction-arrow {
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .top-bar h1 {
+      font-size: 16px;
+    }
+    
+    .instructions-panel {
+      bottom: 180px;
+    }
+    
+    .nav-controls {
+      padding: 8px;
+    }
+  }

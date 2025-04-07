@@ -1,0 +1,333 @@
+// Set your Mapbox access token here
+mapboxgl.accessToken = 'pk.eyJ1IjoiYmlrZWxhbmVtdGwiLCJhIjoiY205Nml0ZjN0MWhiNzJrcG44Y2lyNG1sMCJ9.X-LfKNc57YnP7UkbHbrLDg'; // Replace with your actual token
+
+// Initialize the map
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/streets-v11',
+  center: [-73.5674, 45.5075], // De Maisonneuve & Bordeaux
+  zoom: 15
+});
+
+// Add navigation controls
+map.addControl(new mapboxgl.NavigationControl());
+
+// Initialize variables
+let userLocation = null;
+let userBearing = 0;
+let activePath = null;
+let simulationMode = true; // For testing without GPS
+
+// Add the map controls after the map is loaded
+map.on('load', () => {
+  console.log("Map loaded");
+  
+  // Add the bike paths as a source
+  map.addSource('bike-paths', {
+    type: 'geojson',
+    data: montrealBikePaths
+  });
+  
+  // Add a layer for all bike paths
+  map.addLayer({
+    id: 'bike-paths-layer',
+    type: 'line',
+    source: 'bike-paths',
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
+    },
+    paint: {
+      'line-color': [
+        'match',
+        ['get', 'configuration'],
+        'bidirectional', '#2ecc71',  // Green for bidirectional
+        '#3498db'  // Blue default for one-way
+      ],
+      'line-width': [
+        'match',
+        ['get', 'pathType'],
+        'protected', 6,
+        'dedicated', 4,
+        'shared', 2,
+        'contraflow', 5,
+        4  // Default
+      ]
+    }
+  });
+  
+  // Add a layer for path arrows to show direction
+  map.addLayer({
+    id: 'bike-path-arrows',
+    type: 'symbol',
+    source: 'bike-paths',
+    layout: {
+      'symbol-placement': 'line',
+      'symbol-spacing': 70,
+      'icon-image': 'arrow-up',  // Default arrow
+      'icon-size': 0.7,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true
+    }
+  });
+  
+  // Add a pulsing dot for user location
+  map.loadImage(
+    'https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png',
+    (error, image) => {
+      if (error) throw error;
+      map.addImage('custom-marker', image);
+      
+      // Add user location source
+      map.addSource('user-location', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      });
+      
+      // Add user location layer
+      map.addLayer({
+        id: 'user-location-layer',
+        type: 'symbol',
+        source: 'user-location',
+        layout: {
+          'icon-image': 'custom-marker',
+          'icon-size': 0.5,
+          'icon-allow-overlap': true
+        }
+      });
+    }
+  );
+  
+  // Simulate a route for demonstration
+  simulateRoute();
+});
+
+// Handle the locate button
+document.getElementById('locate-button').addEventListener('click', () => {
+  console.log("Location button clicked, simulation mode:", simulationMode);
+  
+  // Force simulation mode for testing
+  simulationMode = true;
+  simulateUserLocation();
+  
+  console.log("After simulation, user location:", userLocation);
+});
+
+// Update user location on the map
+function updateUserLocation() {
+  if (!userLocation) return;
+  
+  console.log("Updating user location on map:", userLocation);
+  
+  const userSource = map.getSource('user-location');
+  if (userSource) {
+    userSource.setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: userLocation
+        },
+        properties: {
+          bearing: userBearing
+        }
+      }]
+    });
+  } else {
+    console.warn("User location source not found");
+  }
+}
+
+// Check if user is near a bike path
+function checkNearbyPaths() {
+  if (!userLocation) return;
+  
+  console.log("Checking nearby paths at:", userLocation);
+  
+  // Force the Bordeaux path for testing
+  activePath = montrealBikePaths.features.find(
+    feature => feature.properties.id === "bordeaux-street" ||
+              (feature.properties.name && feature.properties.name.en === "Rue de Bordeaux")
+  );
+  
+  console.log("Active path found:", activePath);
+  
+  // Update the side and direction indicators
+  if (activePath) {
+    updatePathIndicators(activePath);
+  } else {
+    console.warn("No path found near location");
+  }
+}
+
+// Update path indicators based on active path
+function updatePathIndicators(path) {
+  const sideIndicator = document.getElementById('side-indicator');
+  const directionIndicator = document.getElementById('direction-indicator');
+  
+  if (!path) {
+    sideIndicator.textContent = 'Bike lane: Not on a bike path';
+    directionIndicator.textContent = 'Direction: Unknown';
+    return;
+  }
+  
+  // Get user's current direction - in a real app this would be from GPS
+  // For demo we'll assume eastbound on De Maisonneuve or southbound on other streets
+  const userDirection = path.properties.id.includes('demaisonneuve') ? 'eastbound' : 'southbound';
+  
+  // Set path side indicator
+  sideIndicator.textContent = `Bike lane: On ${path.properties.streetSide.toUpperCase()} side`;
+  sideIndicator.className = path.properties.streetSide + '-side';
+  
+  // Set direction indicator
+  let directionText = '';
+  let positionText = '';
+  
+  if (path.properties.configuration === 'bidirectional') {
+    directionText = 'BIDIRECTIONAL';
+    // Get position within the bike lane
+    if (path.properties.directions[userDirection]) {
+      positionText = `Stay on ${path.properties.directions[userDirection].position.toUpperCase()} side of lane`;
+    }
+  } else {
+    // One-way lane
+    const direction = Object.keys(path.properties.directions)[0];
+    const withTraffic = path.properties.directions[direction].withTraffic;
+    directionText = withTraffic ? 'ONE-WAY with traffic' : 'ONE-WAY against traffic (CONTRAFLOW)';
+  }
+  
+  directionIndicator.textContent = `Direction: ${directionText}`;
+  
+  // Update safety instruction panel
+  updateInstructionPanel(path, userDirection, positionText);
+  
+  // Update lane visual
+  updateLaneVisual(path, userDirection);
+}
+
+// Update the turn-by-turn instruction panel
+function updateInstructionPanel(path, userDirection, positionText) {
+  const streetDirectionElement = document.querySelector('.step-direction');
+  const instructionContent = document.querySelector('.step-safety-info');
+  
+  if (!path) {
+    instructionContent.textContent = 'No specific instructions';
+    return;
+  }
+  
+  // Update the street name and direction
+  if (path.properties.id === 'bordeaux-street') {
+    streetDirectionElement.textContent = `Turn left onto Bordeaux`;
+  } else {
+    streetDirectionElement.textContent = `On ${path.properties.name.en}`;
+  }
+  
+  // Create safety instruction based on path properties
+  let safetyText = `Bike lane on ${path.properties.streetSide.toUpperCase()} side, `;
+  
+  // Add configuration
+  if (path.properties.configuration === 'bidirectional') {
+    safetyText += 'BIDIRECTIONAL path';
+    if (positionText) {
+      safetyText += ` (${positionText})`;
+    }
+  } else {
+    // One-way configuration
+    const direction = Object.keys(path.properties.directions)[0];
+    const withTraffic = path.properties.directions[direction].withTraffic;
+    safetyText += withTraffic ? 'ONE-WAY with traffic' : 'ONE-WAY against traffic (use caution!)';
+  }
+  
+  // Add safety features and hazards
+  if (path.properties.hazards && path.properties.hazards.length > 0) {
+    safetyText += ` - Watch for: ${formatHazards(path.properties.hazards)}`;
+  }
+  
+  instructionContent.textContent = safetyText;
+}
+
+// Update the visual lane indicator
+function updateLaneVisual(path, userDirection) {
+  console.log("Updating lane visual for path:", path.properties.id, "direction:", userDirection);
+  
+  const bikeElement = document.querySelector('.bike-lane');
+  const arrowElement = document.querySelector('.direction-arrow');
+  
+  if (!bikeElement || !arrowElement) {
+    console.error("Lane visual elements not found in DOM");
+    return;
+  }
+  
+  // Remove existing position classes
+  bikeElement.classList.remove('north', 'south', 'east', 'west');
+  
+  // Add the appropriate position class
+  const side = path.properties.streetSide;
+  console.log("Adding lane position class:", side);
+  bikeElement.classList.add(side);
+  
+  // Update the arrow direction
+  if (path.properties.configuration === 'bidirectional') {
+    arrowElement.innerHTML = '⟷';
+  } else {
+    // For one-way lanes
+    const direction = Object.keys(path.properties.directions)[0];
+    if (direction === 'northbound') arrowElement.innerHTML = '↑';
+    else if (direction === 'southbound') arrowElement.innerHTML = '↓';
+    else if (direction === 'eastbound') arrowElement.innerHTML = '→';
+    else if (direction === 'westbound') arrowElement.innerHTML = '←';
+  }
+}
+
+// Helper to format hazards for display
+function formatHazards(hazards) {
+  const hazardLabels = {
+    'dooring-risk': 'car doors',
+    'pedestrian-crossings': 'pedestrians',
+    'frequent-pedestrians': 'pedestrians',
+    'busy-intersections': 'busy intersections',
+    'one-way-street': 'one-way street'
+  };
+  
+  return hazards.map(h => hazardLabels[h] || h).join(', ');
+}
+
+// Simulate a route for demonstration
+function simulateRoute() {
+  // Set up a simulated route
+  document.querySelector('.step-direction').textContent = 'Turn left onto Bordeaux';
+  
+  // Find the Bordeaux path in our data
+  const bordeauxPath = montrealBikePaths.features.find(
+    feature => feature.properties.id === 'bordeaux-street'
+  );
+  
+  // Update indicators with this path
+  if (bordeauxPath) {
+    updatePathIndicators(bordeauxPath);
+  }
+}
+
+// Simulate user location for demonstration
+function simulateUserLocation() {
+  console.log("Simulating user location");
+  
+  // Set a simulated location at De Maisonneuve & Bordeaux
+  userLocation = [-73.5650, 45.5085];
+  userBearing = 180; // Facing south
+  
+  updateUserLocation();
+  
+  // Center map on simulated location
+  map.flyTo({
+    center: userLocation,
+    zoom: 15
+  });
+  
+  // Check nearby paths
+  checkNearbyPaths();
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Montreal Bike Safety Map</title>
+  
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+  
+  <!-- Your custom CSS -->
+  <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+      <button id="menu-button">☰</button>
+      <h1>Montreal Bike Safety</h1>
+      <button id="alert-button">⚠️</button>
+    </div>
+    
+    <!-- Map Container -->
+    <div id="map"></div>
+    
+    <!-- Bottom Navigation Controls -->
+    <div class="nav-controls">
+      <div class="direction-info">
+        <div id="side-indicator">Bike lane: Unknown</div>
+        <div id="direction-indicator">Direction: Unknown</div>
+      </div>
+      <button id="locate-button">📍 My Location</button>
+      <div class="lane-visual">
+        <div class="street-graphic">
+          <div class="street"></div>
+          <div class="bike-lane"></div>
+          <div class="lane-direction">
+            <span class="direction-arrow">→</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Directional Instructions Panel -->
+    <div class="instructions-panel">
+      <div class="instruction-step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <div class="step-direction">Turn left onto Bordeaux</div>
+          <div class="step-safety-info">Bike lane on WEST side, ONE-WAY with traffic</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Mapbox JS -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+  
+  <!-- Data file -->
+  <script src="bike-paths.js"></script>
+  
+  <!-- Your app code -->
+  <script src="app.js"></script>
+</body>
+</html>
