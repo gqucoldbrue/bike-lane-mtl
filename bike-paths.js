@@ -1,13 +1,47 @@
-// In bike-paths.js - Replace everything with this
-
-// Load the raw Montreal bike path data
-const montrealBikePathsRaw = {
+// Initialize this as a placeholder until data is loaded
+let montrealBikePaths = {
   "type": "FeatureCollection",
-  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
-  "features": [
-    // Paste your full JSON data here
-  ]
+  "features": []
 };
+
+// Function to load and process bike path data
+async function loadBikePaths() {
+  try {
+    console.log("Loading bike path data...");
+    
+    // Fetch the JSON file with the correct name
+    const response = await fetch('reseau_cyclabe.json');
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load bike path data: ${response.status}`);
+    }
+    
+    const montrealBikePathsRaw = await response.json();
+    console.log("Bike path data loaded, processing...");
+    
+    // Process the data with our enhancement function
+    montrealBikePaths = enhanceBikeLaneData(montrealBikePathsRaw);
+    console.log(`Processed ${montrealBikePaths.features.length} bike paths`);
+    
+    // If the map is already initialized, update the source
+    if (window.map && map.isStyleLoaded()) {
+      const source = map.getSource('bike-paths');
+      if (source) {
+        source.setData(montrealBikePaths);
+        console.log("Updated map source with bike path data");
+      }
+    }
+    
+    // Trigger any callbacks that might be waiting for this data
+    document.dispatchEvent(new Event('bikePathsLoaded'));
+    
+  } catch (error) {
+    console.error("Error loading bike path data:", error);
+    // If loading fails, we'll use some minimal sample data
+    montrealBikePaths = createSampleData();
+    document.dispatchEvent(new Event('bikePathsLoaded'));
+  }
+}
 
 // Function to enhance the bike path data with additional safety properties
 function enhanceBikeLaneData(originalData) {
@@ -146,5 +180,78 @@ function determineHazards(properties) {
   return hazards;
 }
 
-// Process the raw data with our enhancement function
-const montrealBikePaths = enhanceBikeLaneData(montrealBikePathsRaw);
+// Create minimal sample data in case loading fails
+function createSampleData() {
+  return {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {
+          "id": "path-sample-1",
+          "name": {
+            "en": "De Maisonneuve Bike Path",
+            "fr": "Piste cyclable De Maisonneuve"
+          },
+          "configuration": "bidirectional",
+          "streetSide": "south",
+          "pathType": "protected",
+          "directions": {
+            "eastbound": {
+              "position": "south",
+              "withTraffic": true
+            },
+            "westbound": {
+              "position": "north",
+              "withTraffic": true
+            }
+          },
+          "safetyFeatures": ["protected-barrier", "four-season"],
+          "hazards": ["pedestrian-crossings"]
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [-73.5685, 45.5085],
+            [-73.5670, 45.5085],
+            [-73.5650, 45.5085],
+            [-73.5630, 45.5085]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "id": "path-sample-2",
+          "name": {
+            "en": "Rue de Bordeaux",
+            "fr": "Rue de Bordeaux"
+          },
+          "configuration": "one-way",
+          "streetSide": "west",
+          "pathType": "dedicated",
+          "directions": {
+            "southbound": {
+              "position": "full",
+              "withTraffic": true
+            }
+          },
+          "safetyFeatures": ["painted-separation"],
+          "hazards": ["dooring-risk"]
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [-73.5650, 45.5085],
+            [-73.5650, 45.5070],
+            [-73.5650, 45.5055],
+            [-73.5650, 45.5040]
+          ]
+        }
+      }
+    ]
+  };
+}
+
+// Start loading bike path data immediately
+loadBikePaths();

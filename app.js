@@ -1,5 +1,5 @@
 // Set your Mapbox access token here
-mapboxgl.accessToken = 'pk.eyJ1IjoiYmlrZWxhbmVtdGwiLCJhIjoiY205Nml0ZjN0MWhiNzJrcG44Y2lyNG1sMCJ9.X-LfKNc57YnP7UkbHbrLDg'; // Replace with your actual token
+mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN'; // Replace with your actual token
 
 // Initialize the map
 const map = new mapboxgl.Map({
@@ -17,10 +17,34 @@ let userLocation = null;
 let userBearing = 0;
 let activePath = null;
 let simulationMode = true; // For testing without GPS
+let dataLoaded = false;
+
+// Listen for the data loaded event
+document.addEventListener('bikePathsLoaded', () => {
+  dataLoaded = true;
+  console.log("Bike path data loaded event received");
+  
+  // If the map is already loaded, add the bike path layers
+  if (map.isStyleLoaded()) {
+    addBikePathLayers();
+  }
+});
 
 // Add the map controls after the map is loaded
 map.on('load', () => {
   console.log("Map loaded");
+  
+  // If data is already loaded, add the bike path layers
+  if (dataLoaded) {
+    addBikePathLayers();
+  } else {
+    console.log("Waiting for bike path data to load...");
+  }
+});
+
+// Put all the bike path layer code in a separate function
+function addBikePathLayers() {
+  console.log("Adding bike path layers to map");
   
   // Add the bike paths as a source
   map.addSource('bike-paths', {
@@ -109,7 +133,7 @@ map.on('load', () => {
   
   // Simulate a route for demonstration
   simulateRoute();
-});
+}
 
 // Handle the locate button
 document.getElementById('locate-button').addEventListener('click', () => {
