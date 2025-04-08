@@ -562,4 +562,127 @@ function updateLaneVisual(path, userDirection) {
     // For one-way lanes
     const direction = Object.keys(path.properties.directions)[0];
     if (direction === 'northbound') arrowElement.innerHTML = '↑';
-    else if (direction === 'southbound')
+    else if (direction === 'southbound') arrowElement.innerHTML = '↓';
+    else if (direction === 'eastbound') arrowElement.innerHTML = '→';
+    else if (direction === 'westbound') arrowElement.innerHTML = '←';
+  }
+}
+
+// Helper to format hazards for display
+function formatHazards(hazards) {
+  const hazardLabels = {
+    'dooring-risk': 'car doors',
+    'pedestrian-crossings': 'pedestrians',
+    'shared-with-cars': 'mixed traffic',
+    'seasonal-closure': 'winter closure',
+    'busy-intersections': 'busy intersections',
+    'one-way-street': 'one-way street'
+  };
+  
+  return hazards.map(h => hazardLabels[h] || h).join(', ');
+}
+
+// Helper to format safety features for display
+function formatSafetyFeatures(features) {
+  const featureLabels = {
+    'protected-barrier': 'physical barrier',
+    'four-season': 'open year-round',
+    'route-verte': 'Route Verte',
+    'median-separation': 'median barrier',
+    'painted-separation': 'painted buffer'
+  };
+  
+  return features.map(f => featureLabels[f] || f).join(', ');
+}
+
+// Simulate a route for demonstration
+function simulateRoute() {
+  // Only simulate a route if no real route is present
+  if (currentRoute) return;
+  
+  // Set up a simulated route
+  document.querySelector('.step-direction').textContent = 'Turn left onto Bordeaux';
+  
+  // Find a path in our data to use
+  if (montrealBikePaths && montrealBikePaths.features && montrealBikePaths.features.length > 0) {
+    const randomIndex = Math.floor(Math.random() * montrealBikePaths.features.length);
+    const path = montrealBikePaths.features[randomIndex];
+    
+    // Update indicators with this path
+    if (path) {
+      updatePathIndicators(path);
+    }
+  }
+}
+
+// Simulate user location for demonstration
+function simulateUserLocation() {
+  console.log("Simulating user location");
+  
+  // First check if we have actual bike path data loaded
+  if (montrealBikePaths && montrealBikePaths.features && montrealBikePaths.features.length > 0) {
+    // Find a suitable path with enough coordinates
+    let suitablePath = null;
+    for (let i = 0; i < montrealBikePaths.features.length; i++) {
+      const feature = montrealBikePaths.features[i];
+      if (feature.geometry.coordinates.length > 2) {
+        suitablePath = feature;
+        break;
+      }
+    }
+    
+    if (suitablePath) {
+      // Get a point along this path (middle point is usually good)
+      const midIndex = Math.floor(suitablePath.geometry.coordinates.length / 2);
+      userLocation = suitablePath.geometry.coordinates[midIndex];
+      console.log("Using point from actual bike path:", userLocation);
+    } else {
+      // Fallback to De Maisonneuve if no suitable path found
+      userLocation = [-73.5650, 45.5085];
+    }
+  } else {
+    // Fallback to De Maisonneuve
+    userLocation = [-73.5650, 45.5085];
+  }
+  
+  userBearing = 180; // Facing south
+  
+  updateUserLocation();
+  
+  // Center map on simulated location
+  map.flyTo({
+    center: userLocation,
+    zoom: 15
+  });
+  
+  // Check nearby paths
+  checkNearbyPaths();
+}
+
+// Helper function to geocode an address into coordinates
+function geocodeAddress(address) {
+  return fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${mapboxgl.accessToken}&limit=1`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.features && data.features.length > 0) {
+        return data.features[0].center;
+      } else {
+        throw new Error("Location not found");
+      }
+    });
+}
+
+// Helper function to test the map with specific locations
+function testRoute(start, end) {
+  document.getElementById('start-point').value = start;
+  document.getElementById('end-point').value = end;
+  document.getElementById('get-directions').click();
+}
+
+// When the window loads, we can set up some test locations
+window.addEventListener('load', () => {
+  // You can uncomment and modify these to test specific routes
+  // setTimeout(() => {
+  //   testRoute("McGill University, Montreal", "Place des Arts, Montreal");
+  // }, 3000);
+});
