@@ -12,12 +12,27 @@ const map = new mapboxgl.Map({
 // Add navigation controls
 map.addControl(new mapboxgl.NavigationControl());
 
+// Initialize Mapbox Directions
+const directions = new MapboxDirections({
+  accessToken: mapboxgl.accessToken,
+  unit: 'metric',
+  profile: 'mapbox/cycling', // Use cycling profile for bike directions
+  alternatives: true,
+  congestion: true,
+  interactive: false, // We'll handle the UI ourselves
+  controls: {
+    inputs: false,
+    instructions: false
+  }
+});
+
 // Initialize variables
 let userLocation = null;
 let userBearing = 0;
 let activePath = null;
 let simulationMode = true; // For testing without GPS
 let dataLoaded = false;
+let currentRoute = null;
 
 // Listen for the data loaded event
 document.addEventListener('bikePathsLoaded', () => {
@@ -34,13 +49,143 @@ document.addEventListener('bikePathsLoaded', () => {
 map.on('load', () => {
   console.log("Map loaded");
   
+  // Add the directions control (invisible UI, we'll use our own)
+  map.addControl(directions, 'top-left');
+  
   // If data is already loaded, add the bike path layers
   if (dataLoaded) {
     addBikePathLayers();
   } else {
     console.log("Waiting for bike path data to load...");
   }
+  
+  // Listen for route results
+  directions.on('route', (e) => {
+    // Update the current route and show safety info for the first step
+    currentRoute = e.route[0]; // Use the first route
+    console.log("Received route:", currentRoute);
+    
+    // Display route steps
+    displayRouteSteps(currentRoute);
+    
+    // Check for bike path safety info for the first step
+    if (currentRoute && currentRoute.legs[0] && currentRoute.legs[0].steps[0]) {
+      const firstStep = currentRoute.legs[0].steps[0];
+      const startCoord = firstStep.geometry.coordinates[0];
+      
+      // Set user location to the start of the route for testing
+      userLocation = startCoord;
+      updateUserLocation();
+      
+      // Check for nearby bike paths to show safety info
+      checkNearbyPaths();
+    }
+  });
 });
+
+// Handle route point inputs
+document.getElementById('get-directions').addEventListener('click', () => {
+  const startInput = document.getElementById('start-point').value;
+  const endInput = document.getElementById('end-point').value;
+  
+  if (!startInput || !endInput) {
+    alert("Please enter both start and end locations");
+    return;
+  }
+  
+  // Clear previous route
+  document.querySelector('.instructions-panel').innerHTML = '<div class="loading">Finding route...</div>';
+  
+  // Set the origin and destination
+  directions.setOrigin(startInput);
+  directions.setDestination(endInput);
+});
+
+// Use my location button
+document.getElementById('use-my-location').addEventListener('click', () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = [position.coords.longitude, position.coords.latitude];
+        document.getElementById('start-point').value = coords.join(',');
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        alert('Could not get your location. Please enter it manually.');
+      }
+    );
+  } else {
+    alert('Geolocation is not supported by your browser. Please enter your location manually.');
+  }
+});
+
+// Display route steps in the instructions panel
+function displayRouteSteps(route) {
+  if (!route || !route.legs || !route.legs[0] || !route.legs[0].steps) {
+    console.error("Invalid route data:", route);
+    return;
+  }
+  
+  const stepsContainer = document.querySelector('.instructions-panel');
+  stepsContainer.innerHTML = '';
+  
+  // Create list for all steps
+  const stepsList = document.createElement('ul');
+  stepsList.className = 'route-steps';
+  
+  route.legs[0].steps.forEach((step, index) => {
+    const stepItem = document.createElement('li');
+    stepItem.className = 'route-step';
+    
+    // Create step header with number and instruction
+    const stepHeader = document.createElement('div');
+    stepHeader.className = 'instruction-step';
+    
+    const stepNumber = document.createElement('div');
+    stepNumber.className = 'step-number';
+    stepNumber.textContent = index + 1;
+    
+    const stepContent = document.createElement('div');
+    stepContent.className = 'step-content';
+    
+    const stepDirection = document.createElement('div');
+    stepDirection.className = 'step-direction';
+    stepDirection.textContent = step.maneuver.instruction;
+    
+    // Create safety info placeholder (will be filled when selected)
+    const safetySuggestion = document.createElement('div');
+    safetySuggestion.className = 'step-safety-info';
+    safetySuggestion.textContent = 'Click for bike lane safety info';
+    
+    // Add event listener to show safety info when clicked
+    stepItem.addEventListener('click', () => {
+      // Center map on this step and show safety info
+      const coords = step.geometry.coordinates[0];
+      map.flyTo({
+        center: coords,
+        zoom: 16
+      });
+      
+      // Update user location for testing
+      userLocation = coords;
+      updateUserLocation();
+      
+      // Check nearby bike lanes
+      checkNearbyPaths();
+    });
+    
+    // Assemble the elements
+    stepContent.appendChild(stepDirection);
+    stepContent.appendChild(safetySuggestion);
+    stepHeader.appendChild(stepNumber);
+    stepHeader.appendChild(stepContent);
+    stepItem.appendChild(stepHeader);
+    
+    stepsList.appendChild(stepItem);
+  });
+  
+  stepsContainer.appendChild(stepsList);
+}
 
 // Put all the bike path layer code in a separate function
 function addBikePathLayers() {
@@ -131,6 +276,18 @@ function addBikePathLayers() {
     }
   );
   
+  // Set up click handler for bike paths
+  map.on('click', 'bike-paths-layer', (e) => {
+    const features = map.queryRenderedFeatures(e.point, {
+      layers: ['bike-paths-layer']
+    });
+    
+    if (features.length > 0) {
+      activePath = features[0];
+      updatePathIndicators(activePath);
+    }
+  });
+  
   // Simulate a route for demonstration
   simulateRoute();
 }
@@ -139,11 +296,37 @@ function addBikePathLayers() {
 document.getElementById('locate-button').addEventListener('click', () => {
   console.log("Location button clicked, simulation mode:", simulationMode);
   
-  // Force simulation mode for testing
-  simulationMode = true;
-  simulateUserLocation();
+  if (simulationMode) {
+    simulateUserLocation();
+  } else if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        userLocation = [position.coords.longitude, position.coords.latitude];
+        updateUserLocation();
+        
+        // Center map on user's location
+        map.flyTo({
+          center: userLocation,
+          zoom: 15
+        });
+        
+        // Check nearby bike paths
+        checkNearbyPaths();
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        alert('Could not get your location. Using simulation mode.');
+        simulationMode = true;
+        simulateUserLocation();
+      }
+    );
+  } else {
+    alert('Geolocation is not supported by your browser. Using simulation mode.');
+    simulationMode = true;
+    simulateUserLocation();
+  }
   
-  console.log("After simulation, user location:", userLocation);
+  console.log("After location update, user location:", userLocation);
 });
 
 // Update user location on the map
@@ -229,6 +412,11 @@ function updatePathIndicators(path) {
   const sideIndicator = document.getElementById('side-indicator');
   const directionIndicator = document.getElementById('direction-indicator');
   
+  if (!sideIndicator || !directionIndicator) {
+    console.error("Side or direction indicator elements not found in DOM");
+    return;
+  }
+  
   if (!path) {
     sideIndicator.textContent = 'Bike lane: Not on a bike path';
     directionIndicator.textContent = 'Direction: Unknown';
@@ -269,19 +457,44 @@ function updatePathIndicators(path) {
   updateLaneVisual(path, userDirection);
 }
 
-// Update the turn-by-turn instruction panel with enhanced data
+// Update the instruction panel with enhanced data
 function updateInstructionPanel(path, userDirection, positionText) {
-  const streetDirectionElement = document.querySelector('.step-direction');
-  const instructionContent = document.querySelector('.step-safety-info');
+  // Only update safety info if we're not showing route instructions
+  if (currentRoute) return;
   
-  if (!path) {
-    instructionContent.textContent = 'No specific instructions';
+  const instructionsPanel = document.querySelector('.instructions-panel');
+  
+  if (!instructionsPanel) {
+    console.error("Instructions panel not found in DOM");
     return;
   }
   
-  // Update the street name and direction
+  // Clear existing content
+  instructionsPanel.innerHTML = '';
+  
+  if (!path) {
+    instructionsPanel.innerHTML = '<div class="step-safety-info">No specific instructions</div>';
+    return;
+  }
+  
+  // Create the instruction step element
+  const stepEl = document.createElement('div');
+  stepEl.className = 'instruction-step';
+  
+  const numberEl = document.createElement('div');
+  numberEl.className = 'step-number';
+  numberEl.textContent = '1';
+  
+  const contentEl = document.createElement('div');
+  contentEl.className = 'step-content';
+  
+  const directionEl = document.createElement('div');
+  directionEl.className = 'step-direction';
   const pathName = path.properties.name.en;
-  streetDirectionElement.textContent = `On ${pathName}`;
+  directionEl.textContent = `On ${pathName}`;
+  
+  const safetyEl = document.createElement('div');
+  safetyEl.className = 'step-safety-info';
   
   // Create safety instruction based on path properties
   let safetyText = `Bike lane on ${path.properties.streetSide.toUpperCase()} side, `;
@@ -312,7 +525,14 @@ function updateInstructionPanel(path, userDirection, positionText) {
     safetyText += ` - Watch for: ${formatHazards(path.properties.hazards)}`;
   }
   
-  instructionContent.textContent = safetyText;
+  safetyEl.textContent = safetyText;
+  
+  // Assemble the elements
+  contentEl.appendChild(directionEl);
+  contentEl.appendChild(safetyEl);
+  stepEl.appendChild(numberEl);
+  stepEl.appendChild(contentEl);
+  instructionsPanel.appendChild(stepEl);
 }
 
 // Update the visual lane indicator
@@ -342,72 +562,4 @@ function updateLaneVisual(path, userDirection) {
     // For one-way lanes
     const direction = Object.keys(path.properties.directions)[0];
     if (direction === 'northbound') arrowElement.innerHTML = '↑';
-    else if (direction === 'southbound') arrowElement.innerHTML = '↓';
-    else if (direction === 'eastbound') arrowElement.innerHTML = '→';
-    else if (direction === 'westbound') arrowElement.innerHTML = '←';
-  }
-}
-
-// Helper to format hazards for display
-function formatHazards(hazards) {
-  const hazardLabels = {
-    'dooring-risk': 'car doors',
-    'pedestrian-crossings': 'pedestrians',
-    'shared-with-cars': 'mixed traffic',
-    'seasonal-closure': 'winter closure',
-    'busy-intersections': 'busy intersections',
-    'one-way-street': 'one-way street'
-  };
-  
-  return hazards.map(h => hazardLabels[h] || h).join(', ');
-}
-
-// Helper to format safety features for display
-function formatSafetyFeatures(features) {
-  const featureLabels = {
-    'protected-barrier': 'physical barrier',
-    'four-season': 'open year-round',
-    'route-verte': 'Route Verte',
-    'median-separation': 'median barrier',
-    'painted-separation': 'painted buffer'
-  };
-  
-  return features.map(f => featureLabels[f] || f).join(', ');
-}
-
-// Simulate a route for demonstration
-function simulateRoute() {
-  // Set up a simulated route
-  document.querySelector('.step-direction').textContent = 'Turn left onto Bordeaux';
-  
-  // Find a path in our data to use
-  if (montrealBikePaths && montrealBikePaths.features && montrealBikePaths.features.length > 0) {
-    const randomIndex = Math.floor(Math.random() * montrealBikePaths.features.length);
-    const path = montrealBikePaths.features[randomIndex];
-    
-    // Update indicators with this path
-    if (path) {
-      updatePathIndicators(path);
-    }
-  }
-}
-
-// Simulate user location for demonstration
-function simulateUserLocation() {
-  console.log("Simulating user location");
-  
-  // Set a simulated location at De Maisonneuve & Bordeaux
-  userLocation = [-73.5650, 45.5085];
-  userBearing = 180; // Facing south
-  
-  updateUserLocation();
-  
-  // Center map on simulated location
-  map.flyTo({
-    center: userLocation,
-    zoom: 15
-  });
-  
-  // Check nearby paths
-  checkNearbyPaths();
-}
+    else if (direction === 'southbound')

@@ -51,6 +51,47 @@ body {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* Navigation inputs panel */
+.navigation-inputs {
+  background-color: white;
+  padding: 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+}
+
+.input-group {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.input-group input {
+  flex-grow: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.input-group button {
+  width: 40px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+
+#get-directions {
+  width: 100%;
+  padding: 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
 #map {
   flex-grow: 1;
   width: 100%;
@@ -60,10 +101,9 @@ body {
   background-color: white;
   padding: 10px;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  position: relative;
   z-index: 50;
-  margin-bottom: 20px;
+  position: relative;
+  margin-bottom: 70px; /* More space for elements below */
 }
 
 #locate-button {
@@ -87,13 +127,14 @@ body {
 }
 
 #side-indicator, #direction-indicator {
-  font-size: 14px;
-  margin-bottom: 4px;
+  font-size: 16px; /* Larger font */
+  margin-bottom: 6px;
+  font-weight: 500; /* Semi-bold */
 }
 
 .instructions-panel {
   position: absolute;
-  bottom: 200px;
+  bottom: 280px; /* More space from bottom */
   left: 20px;
   right: 20px;
   background-color: white;
@@ -101,11 +142,14 @@ body {
   padding: 15px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   z-index: 40; /* Lower than buttons but higher than map */
+  max-height: 250px; /* Add max height */
+  overflow-y: auto; /* Add scrolling if needed */
 }
 
 .instruction-step {
   display: flex;
   align-items: flex-start;
+  margin-bottom: 10px;
 }
 
 .step-number {
@@ -129,23 +173,29 @@ body {
 .step-safety-info {
   font-size: 14px;
   color: #e74c3c;
+  line-height: 1.4; /* Improve readability */
+  margin-top: 4px;
 }
 
 /* Path side indicator styles */
 .west-side {
   color: #3498db;
+  font-weight: bold;
 }
 
 .east-side {
   color: #9b59b6;
+  font-weight: bold;
 }
 
 .north-side {
   color: #2ecc71;
+  font-weight: bold;
 }
 
 .south-side {
-  color: #f39c12;
+  color: #e67e22; /* More visible orange */
+  font-weight: bold;
 }
 
 /* Lane visualization styles */
@@ -153,20 +203,22 @@ body {
   background-color: #f8f9fa;
   padding: 10px;
   border-radius: 4px;
-  margin-top: 8px;
+  margin-top: 20px; /* More spacing */
 }
 
 .street-graphic {
   position: relative;
-  height: 50px;
+  height: 70px; /* Taller graphic */
   display: flex;
   flex-direction: column;
+  margin-top: 15px;
 }
 
 .street {
-  height: 30px;
+  height: 40px; /* Taller street */
   background-color: #888;
   border-radius: 4px;
+  margin: 5px 0;
 }
 
 .bike-lane {
@@ -208,8 +260,25 @@ body {
 
 .direction-arrow {
   color: white;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: bold;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+/* Route display */
+.route-steps {
+  padding: 0;
+  margin: 0;
+  list-style-type: none;
+}
+
+.route-step {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.route-step:last-child {
+  border-bottom: none;
 }
 
 /* Responsive styles */
@@ -219,7 +288,7 @@ body {
   }
   
   .instructions-panel {
-    bottom: 180px;
+    bottom: 220px;
   }
   
   .nav-controls {

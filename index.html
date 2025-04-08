@@ -20,6 +20,18 @@
       <button id="alert-button">⚠️</button>
     </div>
     
+    <!-- Navigation Inputs Panel -->
+    <div class="navigation-inputs">
+      <div class="input-group">
+        <input type="text" id="start-point" placeholder="Start location">
+        <button id="use-my-location">📍</button>
+      </div>
+      <div class="input-group">
+        <input type="text" id="end-point" placeholder="Destination">
+      </div>
+      <button id="get-directions">Get Directions</button>
+    </div>
+    
     <!-- Map Container -->
     <div id="map"></div>
     
@@ -55,6 +67,10 @@
   
   <!-- Mapbox JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+  
+  <!-- Mapbox Directions API -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.0/mapbox-gl-directions.js"></script>
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.0/mapbox-gl-directions.css">
   
   <!-- Turf.js for spatial analysis -->
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
