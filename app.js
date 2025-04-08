@@ -133,7 +133,10 @@ function displayRouteSteps(route) {
   const stepsList = document.createElement('ul');
   stepsList.className = 'route-steps';
   
-  route.legs[0].steps.forEach((step, index) => {
+  // Only show the first 5 steps initially to save space
+  const stepsToShow = route.legs[0].steps.slice(0, 5);
+  
+  stepsToShow.forEach((step, index) => {
     const stepItem = document.createElement('li');
     stepItem.className = 'route-step';
     
@@ -150,12 +153,17 @@ function displayRouteSteps(route) {
     
     const stepDirection = document.createElement('div');
     stepDirection.className = 'step-direction';
-    stepDirection.textContent = step.maneuver.instruction;
+    // Simplify long instructions
+    let instruction = step.maneuver.instruction;
+    if (instruction.length > 40) {
+      instruction = instruction.substring(0, 40) + '...';
+    }
+    stepDirection.textContent = instruction;
     
     // Create safety info placeholder (will be filled when selected)
     const safetySuggestion = document.createElement('div');
     safetySuggestion.className = 'step-safety-info';
-    safetySuggestion.textContent = 'Click for bike lane safety info';
+    safetySuggestion.textContent = 'Tap for safety info';
     
     // Add event listener to show safety info when clicked
     stepItem.addEventListener('click', () => {
@@ -165,6 +173,89 @@ function displayRouteSteps(route) {
         center: coords,
         zoom: 16
       });
+      
+      // Update user location for testing
+      userLocation = coords;
+      updateUserLocation();
+      
+      // Check nearby bike lanes
+      checkNearbyPaths();
+    });
+    
+    // Assemble the elements
+    stepContent.appendChild(stepDirection);
+    stepContent.appendChild(safetySuggestion);
+    stepHeader.appendChild(stepNumber);
+    stepHeader.appendChild(stepContent);
+    stepItem.appendChild(stepHeader);
+    
+    stepsList.appendChild(stepItem);
+  });
+  
+  // If there are more steps, add a "more steps" indicator
+  if (route.legs[0].steps.length > 5) {
+    const moreSteps = document.createElement('li');
+    moreSteps.className = 'more-steps';
+    moreSteps.textContent = `+ ${route.legs[0].steps.length - 5} more steps...`;
+    moreSteps.addEventListener('click', () => {
+      // Show all steps when clicked
+      stepsContainer.innerHTML = '';
+      const fullStepsList = document.createElement('ul');
+      fullStepsList.className = 'route-steps';
+      
+      route.legs[0].steps.forEach((step, index) => {
+        const stepItem = document.createElement('li');
+        stepItem.className = 'route-step';
+        
+        const stepHeader = document.createElement('div');
+        stepHeader.className = 'instruction-step';
+        
+        const stepNumber = document.createElement('div');
+        stepNumber.className = 'step-number';
+        stepNumber.textContent = index + 1;
+        
+        const stepContent = document.createElement('div');
+        stepContent.className = 'step-content';
+        
+        const stepDirection = document.createElement('div');
+        stepDirection.className = 'step-direction';
+        let instruction = step.maneuver.instruction;
+        if (instruction.length > 40) {
+          instruction = instruction.substring(0, 40) + '...';
+        }
+        stepDirection.textContent = instruction;
+        
+        const safetySuggestion = document.createElement('div');
+        safetySuggestion.className = 'step-safety-info';
+        safetySuggestion.textContent = 'Tap for safety info';
+        
+        stepItem.addEventListener('click', () => {
+          const coords = step.geometry.coordinates[0];
+          map.flyTo({
+            center: coords,
+            zoom: 16
+          });
+          userLocation = coords;
+          updateUserLocation();
+          checkNearbyPaths();
+        });
+        
+        stepContent.appendChild(stepDirection);
+        stepContent.appendChild(safetySuggestion);
+        stepHeader.appendChild(stepNumber);
+        stepHeader.appendChild(stepContent);
+        stepItem.appendChild(stepHeader);
+        
+        fullStepsList.appendChild(stepItem);
+      });
+      
+      stepsContainer.appendChild(fullStepsList);
+    });
+    stepsList.appendChild(moreSteps);
+  }
+  
+  stepsContainer.appendChild(stepsList);
+}
       
       // Update user location for testing
       userLocation = coords;
