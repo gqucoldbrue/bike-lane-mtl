@@ -256,27 +256,6 @@ function displayRouteSteps(route) {
   
   stepsContainer.appendChild(stepsList);
 }
-      
-      // Update user location for testing
-      userLocation = coords;
-      updateUserLocation();
-      
-      // Check nearby bike lanes
-      checkNearbyPaths();
-    });
-    
-    // Assemble the elements
-    stepContent.appendChild(stepDirection);
-    stepContent.appendChild(safetySuggestion);
-    stepHeader.appendChild(stepNumber);
-    stepHeader.appendChild(stepContent);
-    stepItem.appendChild(stepHeader);
-    
-    stepsList.appendChild(stepItem);
-  });
-  
-  stepsContainer.appendChild(stepsList);
-}
 
 // Put all the bike path layer code in a separate function
 function addBikePathLayers() {
